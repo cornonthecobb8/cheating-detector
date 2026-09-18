@@ -8,6 +8,29 @@
     <title>Camera</title>
 </head>
 <body>
-    
+      <video id="camVideo" autoplay playsinline muted></video>
+  <div style="padding:12px">
+    <input id="codeInput" maxlength="5" placeholder="CODE" />
+    <button id="connectBtn">Connect</button>
+  </div>
+ 
+  <script>
+  const $ = id => document.getElementById(id);
+  const PREFIX = 'phonedetect-';
+ 
+  async function start() {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    $('camVideo').srcObject = stream;
+ 
+    const peer = new Peer();
+    $('connectBtn').onclick = () => {
+      const code = $('codeInput').value.trim().toUpperCase();
+      peer.call(PREFIX + code, stream);
+    };
+  }
+ 
+  start();
+  </script>
+
 </body>
 </html>

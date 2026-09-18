@@ -10,6 +10,69 @@
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js"></script>
 </head>
 <body>
-    
+      <div id="status">Room code: <b id="code">…</b> — waiting for camera</div>
+  <div class="wrap">
+    <video id="dashVideo" autoplay playsinline muted></video>
+    <canvas id="overlay"></canvas>
+  </div>
+ 
+  <script>
+  const $ = id => document.getElementById(id);
+  const PREFIX = 'phonedetect-';
+ 
+  function makeCode() {
+    let c = '';
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    for (let i = 0; i < 5; i++) c += chars[Math.floor(Math.random() * chars.length)];
+    return c;
+  }
+ 
+  async function start() {
+    const model = await cocoSsd.load();
+    const code = makeCode();
+    const peer = new Peer(PREFIX + code);
+    peer.on('open', () => $('code').textContent = code);
+ 
+    peer.on('call', call => {
+      call.answer();
+      call.on('stream', stream => {
+        const video = $('dashVideo');
+        video.srcObject = stream;
+        $('status').textContent = 'Connected';
+        video.onloadedmetadata = () => detectLoop(video, model);
+      });
+    });
+  }
+ 
+  function detectLoop(video, model) {
+    const canvas = $('overlay');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+ 
+    async function loop() {
+      const predictions = await model.detect(video);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+ 
+      predictions.forEach(p => {
+        if (p.class === 'cell phone' && p.score > 0.6) {
+          const [x, y, w, h] = p.bbox;
+          ctx.strokeStyle = 'red';
+          ctx.lineWidth = 4;
+          ctx.strokeRect(x, y, w, h);
+          ctx.fillStyle = 'red';
+          ctx.font = '20px sans-serif';
+          ctx.fillText('PHONE ' + Math.round(p.score * 100) + '%', x, y - 6);
+        }
+      });
+ 
+      setTimeout(loop, 200);
+    }
+    loop();
+  }
+ 
+  start();
+  </script>
+
 </body>
 </html>
